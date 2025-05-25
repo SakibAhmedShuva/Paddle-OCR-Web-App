@@ -17,14 +17,14 @@ PaddleOCR is a rich, leading OCR toolkit that supports multiple languages and of
 Install the required packages using pip:
 
 ```bash
-pip install paddlepaddle-gpu
-pip install paddleocr
+pip install paddlepaddle-gpu==2.6.2
+pip install paddleocr==2.9.1
 ```
 
 For CPU-only installation, use:
 ```bash
-pip install paddlepaddle
-pip install paddleocr
+pip install paddlepaddle==2.6.2
+pip install paddleocr==2.9.1
 ```
 
 ## Required Libraries
@@ -140,7 +140,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - PaddlePaddle team for the excellent OCR toolkit
 - Contributors to the PaddleOCR project
-
-## Contact
-
-For questions or feedback, please open an issue in the repository.
