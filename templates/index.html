@@ -1,0 +1,279 @@
+<!-- /paddle-ocr-webapp/templates/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaddleOCR Image to Text</title>
+
+    <!-- Embedded CSS -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --background-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-color: #333;
+            --border-color: #dee2e6;
+            --box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--surface-color);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-align: center;
+        }
+
+        .file-label:hover {
+            background-color: #5a6268;
+        }
+
+        #processButton {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+
+        #processButton:disabled {
+            background-color: #a0c7ff;
+            cursor: not-allowed;
+        }
+
+        #processButton:not(:disabled):hover {
+            background-color: #0056b3;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+            display: none; /* Initially hidden until a file is chosen */
+        }
+
+        .image-preview-container, .text-output-container {
+            background: var(--background-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            display: block;
+            margin: 0 auto;
+        }
+
+        #textOutput {
+            background: #e9ecef;
+            padding: 1rem;
+            border-radius: 5px;
+            white-space: pre-wrap; /* Allows text to wrap */
+            word-wrap: break-word;
+            font-family: 'Courier New', Courier, monospace;
+            min-height: 150px;
+            color: #495057;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--secondary-color);
+        }
+
+        @media (max-width: 768px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image to Text with PaddleOCR</h1>
+            <p>Upload an image to extract the text from it.</p>
+        </header>
+        
+        <main>
+            <div class="upload-section">
+                <input type="file" id="imageInput" accept="image/*">
+                <label for="imageInput" class="file-label">Choose an Image</label>
+                <button id="processButton" disabled>Extract Text</button>
+            </div>
+
+            <div id="loader" class="loader" style="display: none;"></div>
+
+            <div class="results-section">
+                <div class="image-preview-container">
+                    <h2>Image Preview</h2>
+                    <img id="imagePreview" src="#" alt="Your uploaded image will appear here" />
+                </div>
+                <div class="text-output-container">
+                    <h2>Extracted Text</h2>
+                    <pre id="textOutput">The extracted text will be displayed here.</pre>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Powered by Flask & PaddleOCR</p>
+        </footer>
+    </div>
+
+    <!-- Embedded JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageInput = document.getElementById('imageInput');
+            const processButton = document.getElementById('processButton');
+            const imagePreview = document.getElementById('imagePreview');
+            const textOutput = document.getElementById('textOutput');
+            const loader = document.getElementById('loader');
+            const resultsSection = document.querySelector('.results-section');
+            const fileLabel = document.querySelector('.file-label');
+
+            let selectedFile = null;
+
+            imageInput.addEventListener('change', () => {
+                selectedFile = imageInput.files[0];
+                if (selectedFile) {
+                    // Display image preview
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        resultsSection.style.display = 'grid'; // Show results section
+                    };
+                    reader.readAsDataURL(selectedFile);
+
+                    // Update UI
+                    fileLabel.textContent = selectedFile.name;
+                    processButton.disabled = false;
+                    textOutput.textContent = 'Click "Extract Text" to process the image.';
+                }
+            });
+
+            processButton.addEventListener('click', async () => {
+                if (!selectedFile) {
+                    alert('Please select an image first.');
+                    return;
+                }
+
+                // Show loader and disable UI elements
+                loader.style.display = 'block';
+                textOutput.textContent = 'Processing... This can take a few seconds.';
+                processButton.disabled = true;
+                imageInput.disabled = true;
+
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                try {
+                    const response = await fetch('/ocr', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'A server error occurred.');
+                    }
+
+                    const data = await response.json();
+                    textOutput.textContent = data.text || 'No text could be extracted.';
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    textOutput.textContent = `An error occurred: ${error.message}`;
+                } finally {
+                    // Hide loader and re-enable UI elements
+                    loader.style.display = 'none';
+                    processButton.disabled = false;
+                    imageInput.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
