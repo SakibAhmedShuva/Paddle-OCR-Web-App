@@ -172,9 +172,121 @@
             box-shadow: var(--hover-shadow);
         }
 
-        .clear-button::before {
-            content: "🗑️";
+        .augmented-button {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e0a800 100%);
+            color: #212529;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .augmented-button:disabled {
+            background: #ffeeba;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .augmented-button:not(:disabled):hover {
+            background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .augmented-button::before {
+            content: "🔬";
             font-size: 1.1rem;
+        }
+
+        .processing-mode {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border-radius: 8px;
+            border-left: 4px solid var(--warning-color);
+            display: none;
+        }
+
+        .processing-mode.active {
+            display: block;
+        }
+
+        .variant-details {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .variant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .variant-item:last-child {
+            border-bottom: none;
+        }
+
+        .variant-name {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .variant-stats {
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+
+        .result-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+        }
+
+        .result-tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--secondary-color);
+            transition: all 0.3s ease;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .result-tab:last-child {
+            border-right: none;
+        }
+
+        .result-tab.active {
+            background: white;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .result-tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .file-info {
@@ -417,11 +529,17 @@
             <div class="upload-section">
                 <div class="upload-controls">
                     <input type="file" id="imageInput" accept="image/*" multiple>
-                    <label for="imageInput" class="file-label">Choose Images</label>
-                    <button id="processButton" disabled>Extract Text from All</button>
+                    <label for="imageInput" class="file-label" id="fileLabel">Choose Images</label>
+                    <button id="processButton" disabled>Extract Text</button>
+                    <button id="augmentedButton" class="augmented-button" disabled>Augmented OCR</button>
                     <button id="clearButton" class="clear-button" style="display: none;">Clear All</button>
                 </div>
                 <div id="fileInfo" class="file-info" style="display: none;"></div>
+                <div id="processingMode" class="processing-mode">
+                    <strong>🔬 Augmented OCR Mode Active</strong><br>
+                    Processing with multiple image preprocessing techniques for enhanced accuracy.
+                    This will take longer but may provide better results for challenging images.
+                </div>
                 <div class="progress-container" id="progressContainer">
                     <div class="progress-bar" id="progressBar"></div>
                 </div>
@@ -438,7 +556,7 @@
         </main>
 
         <footer>
-            <p>Powered by Flask & PaddleOCR | Enhanced Batch Processing | Sakib</p>
+            <p>Powered by Flask & PaddleOCR | Enhanced Batch Processing</p>
         </footer>
     </div>
 
@@ -447,14 +565,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             const imageInput = document.getElementById('imageInput');
             const processButton = document.getElementById('processButton');
+            const augmentedButton = document.getElementById('augmentedButton');
             const clearButton = document.getElementById('clearButton');
             const fileInfo = document.getElementById('fileInfo');
+            const fileLabel = document.getElementById('fileLabel');
+            const processingMode = document.getElementById('processingMode');
             const loader = document.getElementById('loader');
             const resultsContainer = document.getElementById('resultsContainer');
             const emptyState = document.getElementById('emptyState');
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
-            const fileLabel = document.querySelector('.file-label');
 
             let selectedFiles = [];
             let results = [];
@@ -463,11 +583,14 @@
                 if (selectedFiles.length === 0) {
                     fileInfo.style.display = 'none';
                     processButton.disabled = true;
+                    augmentedButton.disabled = true;
                     clearButton.style.display = 'none';
-                    fileLabel.innerHTML = '📁 Choose Images';
+                    fileLabel.innerHTML = 'Choose Images';
+                    processingMode.classList.remove('active');
                 } else {
                     fileInfo.style.display = 'block';
                     processButton.disabled = false;
+                    augmentedButton.disabled = false;
                     clearButton.style.display = 'inline-flex';
                     
                     const fileNames = selectedFiles.map(file => file.name).join(', ');
@@ -479,59 +602,192 @@
                         ${truncatedNames}
                     `;
                     
-                    fileLabel.innerHTML = `📁 ${selectedFiles.length} Images Selected`;
+                    fileLabel.innerHTML = `${selectedFiles.length} Images Selected`;
                 }
             }
 
-            function createResultCard(result, imageDataUrl) {
+            function createResultCard(result, imageDataUrl, isAugmented = false) {
                 const card = document.createElement('div');
                 card.className = 'result-card';
                 
                 const headerClass = result.status === 'success' ? 'success' : 'error';
                 const statusClass = result.status === 'success' ? 'status-success' : 'status-error';
                 
+                let contentHtml = '';
+                
+                if (isAugmented && result.status === 'success') {
+                    // Create tabbed interface for augmented results
+                    contentHtml = `
+                        <div class="result-tabs">
+                            <button class="result-tab active" data-tab="combined">Combined Result</button>
+                            <button class="result-tab" data-tab="original">Original</button>
+                            <button class="result-tab" data-tab="variants">Variants</button>
+                        </div>
+                        <div class="result-content">
+                            <div class="image-section">
+                                <h3 class="section-title image-title">Image Preview</h3>
+                                <img src="${imageDataUrl}" alt="${result.filename}" class="result-image">
+                            </div>
+                            <div class="text-section">
+                                <div class="tab-content active" data-tab="combined">
+                                    <h3 class="section-title text-title">🎯 Enhanced Combined Text</h3>
+                                    <pre class="result-text">${result.text || 'No text found.'}</pre>
+                                </div>
+                                <div class="tab-content" data-tab="original">
+                                    <h3 class="section-title text-title">📷 Original Image Text</h3>
+                                    <pre class="result-text">${result.original_text || 'No text found in original.'}</pre>
+                                </div>
+                                <div class="tab-content" data-tab="variants">
+                                    <h3 class="section-title text-title">🔬 Preprocessing Variants</h3>
+                                    <div class="variant-details">
+                                        ${result.variants.map(variant => `
+                                            <div class="variant-item">
+                                                <span class="variant-name">${variant.name}</span>
+                                                <span class="variant-stats">${variant.word_count} words</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Standard result card
+                    contentHtml = `
+                        <div class="result-content">
+                            <div class="image-section">
+                                <h3 class="section-title image-title">Image Preview</h3>
+                                <img src="${imageDataUrl}" alt="${result.filename}" class="result-image">
+                            </div>
+                            <div class="text-section">
+                                <h3 class="section-title text-title">Extracted Text</h3>
+                                ${result.status === 'success' ? 
+                                    `<pre class="result-text">${result.text || 'No text found in image.'}</pre>` :
+                                    `<div class="error-text">Error: ${result.error}</div>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                }
+                
                 card.innerHTML = `
                     <div class="result-header ${headerClass}">
                         <span class="filename">${result.filename}</span>
-                        <span class="status-badge ${statusClass}">${result.status}</span>
+                        <span class="status-badge ${statusClass}">${result.status}${isAugmented ? ' (Augmented)' : ''}</span>
                     </div>
-                    <div class="result-content">
-                        <div class="image-section">
-                            <h3 class="section-title image-title">Image Preview</h3>
-                            <img src="${imageDataUrl}" alt="${result.filename}" class="result-image">
-                        </div>
-                        <div class="text-section">
-                            <h3 class="section-title text-title">Extracted Text</h3>
-                            ${result.status === 'success' ? 
-                                `<pre class="result-text">${result.text || 'No text found in image.'}</pre>` :
-                                `<div class="error-text">Error: ${result.error}</div>`
-                            }
-                        </div>
-                    </div>
+                    ${contentHtml}
                 `;
+                
+                if (isAugmented && result.status === 'success') {
+                    const tabs = card.querySelectorAll('.result-tab');
+                    const contents = card.querySelectorAll('.tab-content');
+                    tabs.forEach(tab => {
+                        tab.addEventListener('click', () => {
+                            const targetTab = tab.dataset.tab;
+                            tabs.forEach(t => t.classList.remove('active'));
+                            tab.classList.add('active');
+                            contents.forEach(content => {
+                                content.classList.remove('active');
+                                if (content.dataset.tab === targetTab) content.classList.add('active');
+                            });
+                        });
+                    });
+                }
                 
                 return card;
             }
 
-            function updateResults() {
+            function updateResults(isAugmented = false) {
                 resultsContainer.innerHTML = '';
                 
                 if (results.length === 0) {
                     emptyState.style.display = 'block';
                 } else {
                     emptyState.style.display = 'none';
-                    
                     results.forEach((result, index) => {
+                        const file = selectedFiles.find(f => f.name === result.filename);
+                        if (!file) return;
+
                         const reader = new FileReader();
                         reader.onload = (e) => {
-                            const card = createResultCard(result, e.target.result);
+                            const card = createResultCard(result, e.target.result, isAugmented);
                             resultsContainer.appendChild(card);
                         };
-                        reader.readAsDataURL(selectedFiles[index]);
+                        reader.readAsDataURL(file);
                     });
                 }
             }
 
+            async function handleProcessing(endpoint, isAugmented) {
+                if (selectedFiles.length === 0) {
+                    alert('Please select images first.');
+                    return;
+                }
+
+                loader.style.display = 'block';
+                resultsContainer.innerHTML = '';
+                emptyState.style.display = 'none';
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                if (isAugmented) {
+                    processingMode.classList.add('active');
+                }
+
+                processButton.disabled = true;
+                augmentedButton.disabled = true;
+                imageInput.disabled = true;
+                clearButton.disabled = true;
+
+                const formData = new FormData();
+                selectedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
+
+                try {
+                    let progress = 0;
+                    const progressInterval = setInterval(() => {
+                        progress += Math.random() * (isAugmented ? 5 : 15);
+                        if (progress > 95) progress = 95;
+                        progressBar.style.width = progress + '%';
+                    }, 200);
+
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'A server error occurred.');
+                    }
+
+                    const data = await response.json();
+                    results = data.results;
+                    updateResults(isAugmented);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    resultsContainer.innerHTML = `<div class="error-text">An error occurred: ${error.message}</div>`;
+                } finally {
+                    loader.style.display = 'none';
+                    if (isAugmented) {
+                        processingMode.classList.remove('active');
+                    }
+                    processButton.disabled = false;
+                    augmentedButton.disabled = false;
+                    imageInput.disabled = false;
+                    clearButton.disabled = false;
+                    
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressBar.style.width = '0%';
+                    }, 1500);
+                }
+            }
+            
             imageInput.addEventListener('change', () => {
                 selectedFiles = Array.from(imageInput.files);
                 results = [];
@@ -549,68 +805,12 @@
                 progressBar.style.width = '0%';
             });
 
-            processButton.addEventListener('click', async () => {
-                if (selectedFiles.length === 0) {
-                    alert('Please select images first.');
-                    return;
-                }
+            processButton.addEventListener('click', () => {
+                handleProcessing('/ocr-batch', false);
+            });
 
-                // Show loader and progress
-                loader.style.display = 'block';
-                progressContainer.style.display = 'block';
-                progressBar.style.width = '0%';
-                
-                // Disable UI elements
-                processButton.disabled = true;
-                imageInput.disabled = true;
-                clearButton.disabled = true;
-
-                const formData = new FormData();
-                selectedFiles.forEach(file => {
-                    formData.append('files', file);
-                });
-
-                try {
-                    // Simulate progress
-                    let progress = 0;
-                    const progressInterval = setInterval(() => {
-                        progress += Math.random() * 15;
-                        if (progress > 90) progress = 90;
-                        progressBar.style.width = progress + '%';
-                    }, 200);
-
-                    const response = await fetch('/ocr-batch', {
-                        method: 'POST',
-                        body: formData,
-                    });
-
-                    clearInterval(progressInterval);
-                    progressBar.style.width = '100%';
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'A server error occurred.');
-                    }
-
-                    const data = await response.json();
-                    results = data.results;
-                    updateResults();
-
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert(`An error occurred: ${error.message}`);
-                } finally {
-                    // Hide loader and re-enable UI elements
-                    loader.style.display = 'none';
-                    processButton.disabled = false;
-                    imageInput.disabled = false;
-                    clearButton.disabled = false;
-                    
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        progressBar.style.width = '0%';
-                    }, 1000);
-                }
+            augmentedButton.addEventListener('click', () => {
+                handleProcessing('/ocr-batch-augmented', true);
             });
         });
     </script>
