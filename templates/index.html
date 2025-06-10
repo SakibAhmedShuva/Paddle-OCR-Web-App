@@ -5,58 +5,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PaddleOCR Image to Text</title>
+    <title>PaddleOCR Batch Image to Text</title>
 
     <!-- Embedded CSS -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
         :root {
             --primary-color: #007bff;
             --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
             --background-color: #f8f9fa;
             --surface-color: #ffffff;
             --text-color: #333;
             --border-color: #dee2e6;
             --box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --hover-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
             font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 20px;
             background-color: var(--background-color);
             color: var(--text-color);
             line-height: 1.6;
+            padding: 20px;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1400px;
             margin: 0 auto;
             background: var(--surface-color);
             padding: 2rem;
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: var(--box-shadow);
         }
 
         header {
             text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1.5rem;
-            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
         }
 
         header h1 {
             color: var(--primary-color);
             margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        header p {
+            color: var(--secondary-color);
+            font-size: 1.1rem;
         }
 
         .upload-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 2px dashed var(--border-color);
+            margin-bottom: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #f1f8ff 0%, #e3f2fd 100%);
+        }
+
+        .upload-controls {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 1rem;
-            margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
 
         input[type="file"] {
@@ -64,45 +95,102 @@
         }
 
         .file-label {
-            background-color: var(--secondary-color);
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #5a6268 100%);
             color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
             text-align: center;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .file-label:hover {
-            background-color: #5a6268;
+            background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .file-label::before {
+            content: "📁";
+            font-size: 1.2rem;
         }
 
         #processButton {
-            background-color: var(--primary-color);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
             color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 1rem;
-            transition: background-color 0.3s;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         #processButton:disabled {
-            background-color: #a0c7ff;
+            background: #a0c7ff;
             cursor: not-allowed;
+            transform: none;
         }
 
         #processButton:not(:disabled):hover {
-            background-color: #0056b3;
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        #processButton::before {
+            content: "🔍";
+            font-size: 1.1rem;
+        }
+
+        .clear-button {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #c82333 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clear-button:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .clear-button::before {
+            content: "🗑️";
+            font-size: 1.1rem;
+        }
+
+        .file-info {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 123, 255, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
         }
 
         .loader {
             border: 5px solid #f3f3f3;
             border-top: 5px solid var(--primary-color);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
             margin: 2rem auto;
         }
@@ -112,60 +200,208 @@
             100% { transform: rotate(360deg); }
         }
 
-        .results-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-top: 2rem;
-            display: none; /* Initially hidden until a file is chosen */
+        .progress-container {
+            margin: 1rem 0;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 20px;
+            display: none;
         }
 
-        .image-preview-container, .text-output-container {
-            background: var(--background-color);
-            padding: 1.5rem;
-            border-radius: 8px;
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .result-card {
+            background: var(--surface-color);
+            border-radius: 12px;
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+            transition: all 0.3s ease;
             border: 1px solid var(--border-color);
         }
 
-        h2 {
-            margin-top: 0;
-            color: var(--primary-color);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
+        .result-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--hover-shadow);
         }
 
-        #imagePreview {
+        .result-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .result-header.error {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #c82333 100%);
+        }
+
+        .result-header.success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-success {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .status-error {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .result-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 400px;
+        }
+
+        .image-section, .text-section {
+            padding: 1.5rem;
+        }
+
+        .image-section {
+            border-right: 1px solid var(--border-color);
+            background: #f8f9fa;
+        }
+
+        .section-title {
+            font-weight: 500;
+            color: var(--text-color);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            font-size: 1.1rem;
+        }
+
+        .image-title::before {
+            content: "🖼️";
+        }
+
+        .text-title::before {
+            content: "📝";
+        }
+
+        .result-image {
             max-width: 100%;
             height: auto;
-            border-radius: 5px;
+            border-radius: 8px;
             border: 1px solid var(--border-color);
             display: block;
             margin: 0 auto;
+            max-height: 300px;
+            object-fit: contain;
         }
 
-        #textOutput {
-            background: #e9ecef;
+        .result-text {
+            background: #f8f9fa;
             padding: 1rem;
-            border-radius: 5px;
-            white-space: pre-wrap; /* Allows text to wrap */
+            border-radius: 8px;
+            white-space: pre-wrap;
             word-wrap: break-word;
             font-family: 'Courier New', Courier, monospace;
-            min-height: 150px;
+            font-size: 0.9rem;
+            line-height: 1.5;
             color: #495057;
+            border: 1px solid var(--border-color);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .error-text {
+            color: var(--danger-color);
+            font-weight: 500;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--secondary-color);
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px dashed var(--border-color);
+            margin-top: 2rem;
+        }
+
+        .empty-state::before {
+            content: "📷";
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 1rem;
         }
 
         footer {
             text-align: center;
-            margin-top: 2rem;
-            padding-top: 1rem;
+            margin-top: 3rem;
+            padding-top: 2rem;
             border-top: 1px solid var(--border-color);
             color: var(--secondary-color);
+            font-weight: 300;
         }
 
         @media (max-width: 768px) {
-            .results-section {
+            .container {
+                padding: 1rem;
+            }
+            
+            .upload-controls {
+                flex-direction: column;
+            }
+            
+            .results-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .result-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .image-section {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
             }
         }
     </style>
@@ -173,33 +409,36 @@
 <body>
     <div class="container">
         <header>
-            <h1>OCR with PaddleOCR</h1>
-            <p>Upload an image to extract the text from it.</p>
+            <h1>Batch OCR with PaddleOCR</h1>
+            <p>Upload multiple images to extract text from all of them at once.</p>
         </header>
         
         <main>
             <div class="upload-section">
-                <input type="file" id="imageInput" accept="image/*">
-                <label for="imageInput" class="file-label">Choose an Image</label>
-                <button id="processButton" disabled>Extract Text</button>
+                <div class="upload-controls">
+                    <input type="file" id="imageInput" accept="image/*" multiple>
+                    <label for="imageInput" class="file-label">Choose Images</label>
+                    <button id="processButton" disabled>Extract Text from All</button>
+                    <button id="clearButton" class="clear-button" style="display: none;">Clear All</button>
+                </div>
+                <div id="fileInfo" class="file-info" style="display: none;"></div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
             </div>
 
             <div id="loader" class="loader" style="display: none;"></div>
 
-            <div class="results-section">
-                <div class="image-preview-container">
-                    <h2>Image Preview</h2>
-                    <img id="imagePreview" src="#" alt="Your uploaded image will appear here" />
-                </div>
-                <div class="text-output-container">
-                    <h2>Extracted Text</h2>
-                    <pre id="textOutput">The extracted text will be displayed here.</pre>
-                </div>
+            <div id="resultsContainer" class="results-grid"></div>
+            
+            <div id="emptyState" class="empty-state">
+                <h3>No images uploaded yet</h3>
+                <p>Select one or more images to see the OCR results here</p>
             </div>
         </main>
 
         <footer>
-            <p>Powered by Flask & PaddleOCR | Sakib</p>
+            <p>Powered by Flask & PaddleOCR | Enhanced Batch Processing | Sakib</p>
         </footer>
     </div>
 
@@ -208,52 +447,145 @@
         document.addEventListener('DOMContentLoaded', () => {
             const imageInput = document.getElementById('imageInput');
             const processButton = document.getElementById('processButton');
-            const imagePreview = document.getElementById('imagePreview');
-            const textOutput = document.getElementById('textOutput');
+            const clearButton = document.getElementById('clearButton');
+            const fileInfo = document.getElementById('fileInfo');
             const loader = document.getElementById('loader');
-            const resultsSection = document.querySelector('.results-section');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const emptyState = document.getElementById('emptyState');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
             const fileLabel = document.querySelector('.file-label');
 
-            let selectedFile = null;
+            let selectedFiles = [];
+            let results = [];
+
+            function updateFileInfo() {
+                if (selectedFiles.length === 0) {
+                    fileInfo.style.display = 'none';
+                    processButton.disabled = true;
+                    clearButton.style.display = 'none';
+                    fileLabel.innerHTML = '📁 Choose Images';
+                } else {
+                    fileInfo.style.display = 'block';
+                    processButton.disabled = false;
+                    clearButton.style.display = 'inline-flex';
+                    
+                    const fileNames = selectedFiles.map(file => file.name).join(', ');
+                    const truncatedNames = fileNames.length > 100 ? 
+                        fileNames.substring(0, 100) + '...' : fileNames;
+                    
+                    fileInfo.innerHTML = `
+                        <strong>${selectedFiles.length} file(s) selected:</strong><br>
+                        ${truncatedNames}
+                    `;
+                    
+                    fileLabel.innerHTML = `📁 ${selectedFiles.length} Images Selected`;
+                }
+            }
+
+            function createResultCard(result, imageDataUrl) {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                const headerClass = result.status === 'success' ? 'success' : 'error';
+                const statusClass = result.status === 'success' ? 'status-success' : 'status-error';
+                
+                card.innerHTML = `
+                    <div class="result-header ${headerClass}">
+                        <span class="filename">${result.filename}</span>
+                        <span class="status-badge ${statusClass}">${result.status}</span>
+                    </div>
+                    <div class="result-content">
+                        <div class="image-section">
+                            <h3 class="section-title image-title">Image Preview</h3>
+                            <img src="${imageDataUrl}" alt="${result.filename}" class="result-image">
+                        </div>
+                        <div class="text-section">
+                            <h3 class="section-title text-title">Extracted Text</h3>
+                            ${result.status === 'success' ? 
+                                `<pre class="result-text">${result.text || 'No text found in image.'}</pre>` :
+                                `<div class="error-text">Error: ${result.error}</div>`
+                            }
+                        </div>
+                    </div>
+                `;
+                
+                return card;
+            }
+
+            function updateResults() {
+                resultsContainer.innerHTML = '';
+                
+                if (results.length === 0) {
+                    emptyState.style.display = 'block';
+                } else {
+                    emptyState.style.display = 'none';
+                    
+                    results.forEach((result, index) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const card = createResultCard(result, e.target.result);
+                            resultsContainer.appendChild(card);
+                        };
+                        reader.readAsDataURL(selectedFiles[index]);
+                    });
+                }
+            }
 
             imageInput.addEventListener('change', () => {
-                selectedFile = imageInput.files[0];
-                if (selectedFile) {
-                    // Display image preview
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        imagePreview.src = e.target.result;
-                        resultsSection.style.display = 'grid'; // Show results section
-                    };
-                    reader.readAsDataURL(selectedFile);
+                selectedFiles = Array.from(imageInput.files);
+                results = [];
+                updateFileInfo();
+                updateResults();
+            });
 
-                    // Update UI
-                    fileLabel.textContent = selectedFile.name;
-                    processButton.disabled = false;
-                    textOutput.textContent = 'Click "Extract Text" to process the image.';
-                }
+            clearButton.addEventListener('click', () => {
+                selectedFiles = [];
+                results = [];
+                imageInput.value = '';
+                updateFileInfo();
+                updateResults();
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
             });
 
             processButton.addEventListener('click', async () => {
-                if (!selectedFile) {
-                    alert('Please select an image first.');
+                if (selectedFiles.length === 0) {
+                    alert('Please select images first.');
                     return;
                 }
 
-                // Show loader and disable UI elements
+                // Show loader and progress
                 loader.style.display = 'block';
-                textOutput.textContent = 'Processing... This can take a few seconds.';
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                
+                // Disable UI elements
                 processButton.disabled = true;
                 imageInput.disabled = true;
+                clearButton.disabled = true;
 
                 const formData = new FormData();
-                formData.append('file', selectedFile);
+                selectedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
 
                 try {
-                    const response = await fetch('/ocr', {
+                    // Simulate progress
+                    let progress = 0;
+                    const progressInterval = setInterval(() => {
+                        progress += Math.random() * 15;
+                        if (progress > 90) progress = 90;
+                        progressBar.style.width = progress + '%';
+                    }, 200);
+
+                    const response = await fetch('/ocr-batch', {
                         method: 'POST',
                         body: formData,
                     });
+
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
 
                     if (!response.ok) {
                         const errorData = await response.json();
@@ -261,16 +593,23 @@
                     }
 
                     const data = await response.json();
-                    textOutput.textContent = data.text || 'No text could be extracted.';
+                    results = data.results;
+                    updateResults();
 
                 } catch (error) {
                     console.error('Error:', error);
-                    textOutput.textContent = `An error occurred: ${error.message}`;
+                    alert(`An error occurred: ${error.message}`);
                 } finally {
                     // Hide loader and re-enable UI elements
                     loader.style.display = 'none';
                     processButton.disabled = false;
                     imageInput.disabled = false;
+                    clearButton.disabled = false;
+                    
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressBar.style.width = '0%';
+                    }, 1000);
                 }
             });
         });

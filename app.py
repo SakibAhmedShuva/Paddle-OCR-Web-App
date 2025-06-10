@@ -1,6 +1,7 @@
 # /paddle-ocr-webapp/app.py
 
 import os
+import uuid
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from paddleocr import PaddleOCR
@@ -93,6 +94,66 @@ def index():
     """Serves the main HTML page for the frontend."""
     return render_template('index.html')
 
+@app.route('/ocr-batch', methods=['POST'])
+def upload_and_ocr_batch():
+    """Handles multiple file uploads and performs OCR on each."""
+    if 'files' not in request.files:
+        return jsonify({'error': 'No files part in the request'}), 400
+    
+    files = request.files.getlist('files')
+    
+    if not files or all(file.filename == '' for file in files):
+        return jsonify({'error': 'No files selected for uploading'}), 400
+    
+    results = []
+    
+    # Create the uploads directory if it doesn't exist
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+    
+    for file in files:
+        if file and allowed_file(file.filename):
+            # Generate unique filename to avoid conflicts
+            unique_filename = f"{uuid.uuid4()}_{file.filename}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            
+            try:
+                file.save(filepath)
+                
+                # Run OCR on the saved image file
+                result = ocr_model.ocr(filepath, cls=False)
+                
+                # Process the result to get formatted text
+                formatted_text = process_ocr_result(result)
+                
+                results.append({
+                    'filename': file.filename,
+                    'text': formatted_text,
+                    'status': 'success'
+                })
+                
+            except Exception as e:
+                results.append({
+                    'filename': file.filename,
+                    'text': '',
+                    'status': 'error',
+                    'error': str(e)
+                })
+            finally:
+                # Clean up the uploaded file after processing
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+        else:
+            results.append({
+                'filename': file.filename if file else 'Unknown',
+                'text': '',
+                'status': 'error',
+                'error': 'File type not allowed'
+            })
+    
+    return jsonify({'results': results})
+
+# Keep the original single file endpoint for backward compatibility
 @app.route('/ocr', methods=['POST'])
 def upload_and_ocr():
     """Handles the file upload and performs OCR."""
