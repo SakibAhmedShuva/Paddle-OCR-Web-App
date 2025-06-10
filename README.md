@@ -1,10 +1,14 @@
-# PaddleOCR Tutorial
+# Paddle-OCR-Web-App
 
 This repository contains a tutorial implementation of PaddleOCR, demonstrating how to perform Optical Character Recognition (OCR) using the PaddlePaddle framework.
 
 ## Overview
 
 PaddleOCR is a rich, leading OCR toolkit that supports multiple languages and offers excellent text detection and recognition capabilities. This tutorial shows how to set up and use PaddleOCR for text extraction from images, with specific focus on proper text alignment and formatting.
+
+
+![image](https://github.com/user-attachments/assets/669377c0-863f-42f3-b585-cced868b6f1d)
+
 
 ## Prerequisites
 
