@@ -5,6 +5,8 @@ import uuid
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from paddleocr import PaddleOCR
+import cv2 # Import OpenCV
+import numpy as np # Import NumPy
 
 # --- Configuration ---
 # Define the folder to store uploaded images temporarily
@@ -68,19 +70,13 @@ def process_ocr_result(result):
         prev_item = current_line[-1]
         current_item = text_coordinates[i]
         
-        # If the vertical distance is within the threshold, it's the same line
         if abs(current_item['y'] - prev_item['y']) <= line_threshold:
             current_line.append(current_item)
         else:
-            # New line detected, process the previous line
-            # Sort the items in the completed line by their x-coordinate
             current_line.sort(key=lambda x: x['x'])
             formatted_lines.append(' '.join([item['text'] for item in current_line]))
-            
-            # Start a new line
             current_line = [current_item]
             
-    # Add the last line
     if current_line:
         current_line.sort(key=lambda x: x['x'])
         formatted_lines.append(' '.join([item['text'] for item in current_line]))
@@ -107,23 +103,17 @@ def upload_and_ocr_batch():
     
     results = []
     
-    # Create the uploads directory if it doesn't exist
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     
     for file in files:
         if file and allowed_file(file.filename):
-            # Generate unique filename to avoid conflicts
             unique_filename = f"{uuid.uuid4()}_{file.filename}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             
             try:
                 file.save(filepath)
-                
-                # Run OCR on the saved image file
                 result = ocr_model.ocr(filepath, cls=False)
-                
-                # Process the result to get formatted text
                 formatted_text = process_ocr_result(result)
                 
                 results.append({
@@ -133,25 +123,84 @@ def upload_and_ocr_batch():
                 })
                 
             except Exception as e:
-                results.append({
-                    'filename': file.filename,
-                    'text': '',
-                    'status': 'error',
-                    'error': str(e)
-                })
+                results.append({'filename': file.filename,'text': '','status': 'error','error': str(e)})
             finally:
-                # Clean up the uploaded file after processing
                 if os.path.exists(filepath):
                     os.remove(filepath)
         else:
-            results.append({
-                'filename': file.filename if file else 'Unknown',
-                'text': '',
-                'status': 'error',
-                'error': 'File type not allowed'
-            })
+            results.append({'filename': file.filename if file else 'Unknown','text': '','status': 'error','error': 'File type not allowed'})
     
     return jsonify({'results': results})
+
+# --- Route for "Augmented OCR" button ---
+@app.route('/ocr-batch-augmented', methods=['POST'])
+def upload_and_ocr_batch_augmented():
+    """
+    Handles "augmented" OCR by applying image preprocessing with OpenCV
+    before running the OCR, providing a potentially different/better result.
+    """
+    if 'files' not in request.files:
+        return jsonify({'error': 'No files part in the request'}), 400
+
+    files = request.files.getlist('files')
+
+    if not files or all(file.filename == '' for file in files):
+        return jsonify({'error': 'No files selected for uploading'}), 400
+
+    results = []
+
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+
+    for file in files:
+        if file and allowed_file(file.filename):
+            unique_filename = f"{uuid.uuid4()}_{file.filename}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+
+            try:
+                file.save(filepath)
+
+                # --- START OF AUGMENTATION LOGIC ---
+                
+                # 1. Run OCR on the original image first
+                original_result = ocr_model.ocr(filepath, cls=False)
+                original_text = process_ocr_result(original_result)
+
+                # 2. Preprocess the image using OpenCV for the "augmented" version
+                img = cv2.imread(filepath)
+                # Convert to grayscale
+                gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                # Apply a binary threshold to get a black and white image
+                _, augmented_img = cv2.threshold(gray_img, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+
+                # 3. Run OCR on the processed NumPy array
+                # PaddleOCR can take an image path or a NumPy array
+                augmented_result = ocr_model.ocr(augmented_img, cls=False)
+                augmented_text = process_ocr_result(augmented_result)
+                
+                # --- END OF AUGMENTATION LOGIC ---
+
+                results.append({
+                    'filename': file.filename,
+                    'status': 'success',
+                    'text': augmented_text,          # The "Enhanced Combined Text" is from our augmented image
+                    'original_text': original_text,  # The "Original Image Text"
+                    'variants': [                    # Populate variants for the UI
+                        {'name': 'Original', 'word_count': len(original_text.split())},
+                        {'name': 'Grayscale + Threshold', 'word_count': len(augmented_text.split())}
+                    ]
+                })
+
+            except Exception as e:
+                results.append({'filename': file.filename,'text': '','status': 'error','error': str(e)})
+            finally:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+        else:
+            results.append({'filename': file.filename if file else 'Unknown','text': '','status': 'error','error': 'File type not allowed'})
+
+    return jsonify({'results': results})
+
 
 # Keep the original single file endpoint for backward compatibility
 @app.route('/ocr', methods=['POST'])
@@ -166,7 +215,6 @@ def upload_and_ocr():
         return jsonify({'error': 'No file selected for uploading'}), 400
         
     if file and allowed_file(file.filename):
-        # Create the uploads directory if it doesn't exist
         if not os.path.exists(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'])
             
@@ -174,18 +222,13 @@ def upload_and_ocr():
         file.save(filepath)
         
         try:
-            # Run OCR on the saved image file
             result = ocr_model.ocr(filepath, cls=False)
-            
-            # Process the result to get formatted text
             formatted_text = process_ocr_result(result)
-            
             return jsonify({'text': formatted_text})
             
         except Exception as e:
             return jsonify({'error': f'An error occurred during OCR processing: {str(e)}'}), 500
         finally:
-            # Clean up the uploaded file after processing
             if os.path.exists(filepath):
                 os.remove(filepath)
     else:
@@ -193,5 +236,4 @@ def upload_and_ocr():
 
 # --- Main Execution ---
 if __name__ == '__main__':
-    # Running on 0.0.0.0 makes it accessible on your local network
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
